@@ -30,6 +30,7 @@ use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\IAppConfig;
 use OCP\IRequest;
+use OCP\IUserSession;
 
 class FaceRecognitionBackend extends Backend
 {
@@ -39,6 +40,7 @@ class FaceRecognitionBackend extends Backend
         protected IRequest $request,
         protected TimelineQuery $tq,
         protected IAppConfig $appConfig,
+				protected IUserSession $userSession,
     ) {}
 
     public static function appName(): string
@@ -269,6 +271,12 @@ class FaceRecognitionBackend extends Backend
         // GROUP by ID of face cluster
         $query->addGroupBy('frp.id', 'frp.user');
         $query->andWhere($query->expr()->isNull('frp.name'));
+				
+				// Filter out all clusters not owned by the logged-in user
+        $user = $this->userSession->getUser();
+        if ($user) {
+            $query->andWhere($query->expr()->eq('frp.user', $query->createNamedParameter($user->getUID())));
+        }
 
         // The query change if we want the people in an fileid, or the unnamed clusters
         if ($fileid > 0) {
@@ -337,6 +345,12 @@ class FaceRecognitionBackend extends Backend
 
         // GROUP by name of face clusters
         $query->andWhere($query->expr()->isNotNull('frp.name'));
+				
+				// Filter out all clusters not owned by the logged-in user
+        $user = $this->userSession->getUser();
+        if ($user) {
+            $query->andWhere($query->expr()->eq('frp.user', $query->createNamedParameter($user->getUID())));
+        }
 
         // WHERE these clusters contain fileid if specified
         if ($fileid > 0) {
